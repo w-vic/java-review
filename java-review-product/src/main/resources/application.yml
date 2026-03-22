@@ -1,0 +1,63 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: java-review-product
+
+  # Nacos 配置中心导入（optional: 表示 Nacos 不可用时不阻塞启动）
+  config:
+    import: optional:nacos:${spring.application.name}.yml
+
+  # ==================== MySQL 数据源 ====================
+  datasource:
+    url: jdbc:mysql://localhost:3306/java_review?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
+    username: root
+    password: 12345678
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  # ==================== Redis ====================
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      database: 0
+      timeout: 3000ms
+
+  # ==================== Elasticsearch ====================
+  # 注意：spring.elasticsearch.uris 不在 spring.data 下
+  elasticsearch:
+    uris: http://localhost:9200
+
+  # ==================== Nacos ====================
+  cloud:
+    nacos:
+      discovery:
+        server-addr: localhost:8848
+      config:
+        server-addr: localhost:8848
+        file-extension: yml
+
+# ==================== MyBatis-Plus ====================
+mybatis-plus:
+  configuration:
+    # 开启下划线转驼峰（数据库 create_time → Java createTime）
+    map-underscore-to-camel-case: true
+    # 开发阶段打印 SQL，方便调试
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      # 逻辑删除字段值配置
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+# ==================== Actuator / Prometheus ====================
+management:
+  endpoints:
+    web:
+      exposure:
+        # 暴露 health、info、prometheus 端点供监控采集
+        include: health,info,prometheus
+  metrics:
+    tags:
+      application: ${spring.application.name}

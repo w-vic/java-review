@@ -1,0 +1,44 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: java-review-gateway
+
+  cloud:
+    # ==================== Nacos ====================
+    nacos:
+      discovery:
+        server-addr: localhost:8848
+
+    # ==================== Gateway 路由配置 ====================
+    gateway:
+      routes:
+        # 商品服务路由
+        - id: product-route
+          # lb:// 表示从注册中心获取服务地址并做负载均衡
+          uri: lb://java-review-product
+          predicates:
+            # 匹配 /api/product/** 的请求
+            - Path=/api/product/**
+          filters:
+            # 去掉路径中的 /api 前缀再转发，如 /api/product/1 → /product/1
+            - StripPrefix=1
+
+        # 订单服务路由
+        - id: order-route
+          uri: lb://java-review-order
+          predicates:
+            - Path=/api/order/**
+          filters:
+            - StripPrefix=1
+
+# ==================== Actuator ====================
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,gateway
+  metrics:
+    tags:
+      application: ${spring.application.name}

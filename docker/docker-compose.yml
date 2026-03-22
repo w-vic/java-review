@@ -1,0 +1,79 @@
+## Docker Compose — 一键拉起本地开发环境（MySQL 8.0.30 和 Redis 8.0.3 使用本机安装）
+## 使用方法：cd docker && docker-compose up -d
+
+services:
+  # ==================== Elasticsearch 8.x ====================
+  elasticsearch:
+    image: arm64v8/elasticsearch:8.10.2
+    container_name: java-review-es
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+            # 9.x 新增：关闭自动创建索引（可选，避免警告）
+      - "action.auto_create_index=true"
+      # ✅ 新增：调整磁盘水位线 (解决 90% 报错)
+      # 解释：只有当磁盘使用率超过 95% 时才警告，超过 98% 才强制只读
+      # - "cluster.routing.allocation.disk.watermark.low=95%"
+      # - "cluster.routing.allocation.disk.watermark.high=95%"
+      # - "cluster.routing.allocation.disk.watermark.flood_stage=97%"
+
+      # 或者使用绝对大小策略（更推荐，不受百分比波动影响）：
+      # 只要剩余空间大于 10GB，就允许正常运行
+      - "cluster.routing.allocation.disk.watermark.low=10gb"
+      - "cluster.routing.allocation.disk.watermark.high=10gb"
+      - "cluster.routing.allocation.disk.watermark.flood_stage=5gb"
+    volumes:
+      - /Users/ww/docker-es/es-data:/usr/share/elasticsearch/data
+      - /Users/ww/docker-es/es-plugins:/usr/share/elasticsearch/plugins
+    networks:
+      - java-review-net
+
+  # ==================== Nacos 2.x（服务注册 + 配置中心）====================
+  nacos:
+    image: nacos/nacos-server:v2.3.2-slim
+    container_name: java-review-nacos
+    ports:
+      - "8848:8848"
+      - "9848:9848"
+    environment:
+      - MODE=standalone
+      - NACOS_AUTH_ENABLE=false
+      - JVM_XMS=256m
+      - JVM_XMX=256m
+    networks:
+      - java-review-net
+
+  # ==================== Prometheus（指标采集）====================
+  prometheus:
+    image: prom/prometheus:v2.47.0
+    container_name: java-review-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - java-review-net
+
+  # ==================== Grafana（可视化仪表盘）====================
+  grafana:
+    image: grafana/grafana:9.5.2
+    container_name: java-review-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    depends_on:
+      - prometheus
+    networks:
+      - java-review-net
+
+networks:
+  java-review-net:
+    driver: bridge
+
+volumes:
+  es-data:
