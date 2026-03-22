@@ -1,9 +1,12 @@
 package com.javareview.order.feign;
 
+import com.javareview.common.dto.StockDeductDTO;
 import com.javareview.common.result.Result;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 
 /**
  * 商品服务 Feign 客户端
@@ -29,4 +32,19 @@ public interface ProductFeignClient {
      */
     @GetMapping("/{id}")
     Result<ProductFeignVO> getById(@PathVariable("id") Long id);
+
+    /**
+     * 查询商品库存
+     * <p>
+     * 下单前通过此接口做库存校验（同步 Feign 调用），
+     * 确认库存充足后再创建订单，避免"超卖"。
+     */
+    @GetMapping("/{id}/stock")
+    Result<Integer> getStock(@PathVariable("id") Long id);
+
+    /**
+     * 扣减库存（订单付款成功后调用）
+     */
+    @PostMapping("/{id}/stock/deduct")
+    Result<Void> deductStock(@PathVariable("id") Long productId, @RequestBody StockDeductDTO dto);
 }
