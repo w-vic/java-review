@@ -22,4 +22,12 @@ public interface ProductService {
     ProductVO update(Long id, ProductUpdateDTO dto);
 
     void delete(Long id);
+
+    /**
+     * 扣减库存（由订单付款流程 Feign 同步调用）
+     *
+     * @param productId 商品ID
+     * @param quantity  扣减数量
+     */
+    void deductStock(Long productId, Integer quantity);
 }

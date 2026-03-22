@@ -24,10 +24,15 @@ public enum ErrorCode {
 
     // ==================== 商品模块 ====================
     PRODUCT_NOT_FOUND(20001, "商品不存在"),
+    STOCK_NOT_ENOUGH(20002, "库存不足"),
 
     // ==================== 订单模块 ====================
     ORDER_NOT_FOUND(30001, "订单不存在"),
     ORDER_DUPLICATE(30002, "重复提交，请勿重复下单"),
+    ORDER_CANNOT_PAY(30003, "当前订单状态不允许付款"),
+    ORDER_CANNOT_UPDATE(30004, "当前订单不允许修改"),
+    ORDER_CANNOT_DELETE(30005, "已支付订单不可删除"),
+    ORDER_ALREADY_CANCELLED(30006, "订单已取消"),
     ;
 
     private final int code;

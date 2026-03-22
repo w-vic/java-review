@@ -50,7 +50,8 @@ public final class OrderConverter {
                 entity.getQuantity(),
                 entity.getTotalAmount(),
                 statusDesc,
-                entity.getCreateTime()
+                entity.getCreateTime(),
+                entity.getUpdateTime()
         );
     }
 }

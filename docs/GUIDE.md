@@ -11,12 +11,14 @@
 | MySQL | 8.0.30 | 本机安装，端口 3306 |
 | Redis | 8.0.3 | 本机安装，端口 6379 |
 
-### 1.2 Docker 容器（ES、Nacos、Prometheus、Grafana）
+### 1.2 Docker 容器（ES、Kibana、Nacos、RocketMQ、Dashboard、Prometheus、Grafana）
 
 ```bash
 cd docker
 docker-compose up -d
 ```
+
+说明：**当前 demo 的订单/商品服务未连接 RocketMQ**，库存扣减在「订单付款」时由 **OpenFeign 同步调用**商品接口完成。Compose 里的 RocketMQ 与 Dashboard 仍可按需启动，便于本地练习或自行扩展异步场景。
 
 启动后验证各组件是否正常：
 
@@ -25,8 +27,20 @@ docker-compose up -d
 curl http://localhost:9200
 # 期望返回 JSON，包含 version.number = "8.10.2"
 
+# Kibana（与 ES 8.10.2 同版本，官方可视化：Discover / Dev Tools 等）
+# 浏览器打开 http://localhost:5601 （首次启动约需 1～2 分钟）
+# Dev Tools 中可执行：GET /product/_search
+
 # Nacos 控制台
 # 浏览器打开 http://localhost:8848/nacos/  用户名/密码: nacos/nacos
+
+# RocketMQ NameServer
+curl -s telnet://localhost:9876 || echo "9876 端口已监听"
+# Broker 日志确认启动成功
+docker logs java-review-broker 2>&1 | tail -3
+
+# RocketMQ Dashboard（Topic、消费者、消息轨迹等）
+# 浏览器打开 http://localhost:18082
 
 # Prometheus
 # 浏览器打开 http://localhost:9090
@@ -126,11 +140,59 @@ curl -X DELETE http://localhost:8081/product/4
 
 ### 3.2 订单服务
 
-**创建订单（带幂等键）**
+**查询商品库存（Feign 调用入口）**
+```bash
+curl http://localhost:8081/product/1/stock
+# 返回: {"code":200,"message":"success","data":100}
+```
+
+**创建订单（待支付：仅 Feign 校验库存，不扣库存）**
 ```bash
 curl -X POST http://localhost:8082/order \
   -H "Content-Type: application/json" \
   -d '{"orderNo":"ORD20260322001","productId":1,"quantity":2}'
+# 返回订单 JSON，statusDesc 为「待支付」；此时库存尚未扣减
+```
+
+**确认创建后库存未变**
+```bash
+curl http://localhost:8081/product/1/stock
+# 仍为下单前的数量（例如 100）
+```
+
+**付款（Feign 同步扣减库存，并发下对订单行 SELECT ... FOR UPDATE）**
+```bash
+# 将 {id} 换为上一请求返回的订单 id
+curl -X POST http://localhost:8082/order/{id}/pay
+# 商品服务日志会出现：库存扣减成功 ...
+```
+
+**验证付款后库存已扣减**
+```bash
+curl http://localhost:8081/product/1/stock
+# 例如购买 2 件：由 100 变为 98
+```
+
+**再次付款同一订单（幂等：已支付则直接返回）**
+```bash
+curl -X POST http://localhost:8082/order/{id}/pay
+```
+
+**待支付时修改数量、取消、按单号查询、删除**
+```bash
+curl -X PUT http://localhost:8082/order/{id} -H "Content-Type: application/json" -d '{"quantity":1}'
+curl -X POST http://localhost:8082/order/{id}/cancel
+curl http://localhost:8082/order/by-no/ORD20260322001
+curl -X DELETE http://localhost:8082/order/{id}
+# 注意：已支付订单不可删除（返回 30005）
+```
+
+**库存不足时下单（验证 Feign 库存校验）**
+```bash
+curl -X POST http://localhost:8082/order \
+  -H "Content-Type: application/json" \
+  -d '{"orderNo":"ORD-BIGORDER","productId":1,"quantity":99999}'
+# 返回: {"code":20002,"message":"库存不足","data":null}
 ```
 
 **重复提交同一 orderNo（验证幂等拦截）**
@@ -138,7 +200,7 @@ curl -X POST http://localhost:8082/order \
 curl -X POST http://localhost:8082/order \
   -H "Content-Type: application/json" \
   -d '{"orderNo":"ORD20260322001","productId":1,"quantity":2}'
-# 期望返回: {"code":30002,"message":"重复提交，请勿重复下单","data":null}
+# 返回: {"code":30002,"message":"重复提交，请勿重复下单","data":null}
 ```
 
 **查询订单**
@@ -190,6 +252,23 @@ curl http://localhost:8080/api/order/list
 2. 在 "Import via grafana.com" 输入框填入 Dashboard ID：`4701`（JVM Micrometer Dashboard）
 3. 点击 Load → 选择 Prometheus 数据源 → Import
 4. 即可看到 JVM 内存、GC、线程等可视化面板
+
+### 4.5 RocketMQ
+
+- NameServer 端口：`localhost:9876`
+- Broker 端口：`localhost:10911`
+- **Dashboard**：`http://localhost:18082`（容器 `rocketmq-dashboard`，已指向 compose 内 NameServer）
+- 验证 Broker 是否注册到 NameServer：
+
+```bash
+# 进入 broker 容器查看集群信息
+docker exec java-review-broker sh mqadmin clusterList -n rocketmq-namesrv:9876
+```
+
+业务侧库存与订单的关系（当前实现）：
+1. **创建订单**：仅校验库存是否足够，订单状态为待支付，**不扣库存**
+2. **付款**：订单服务 `POST /order/{id}/pay`，在事务内对订单行加锁后，通过 Feign 调用 `POST /product/{id}/stock/deduct` 扣减 `quantity`
+3. 若需练习 RocketMQ，可使用 compose 中的 Broker + Dashboard；应用代码中的异步扣减已改为上述同步链路
 
 ## 5. 常见问题
 

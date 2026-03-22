@@ -32,6 +32,21 @@ services:
     networks:
       - java-review-net
 
+  # ==================== Kibana 8.x（与 ES 同版本，Dev Tools / 索引与文档可视化）====================
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.10.2
+    container_name: java-review-kibana
+    ports:
+      - "5601:5601"
+    environment:
+      # 与上方 elasticsearch 服务名一致；ES 已关闭 xpack.security，无需账号
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - SERVER_PUBLICBASEURL=http://localhost:5601
+    depends_on:
+      - elasticsearch
+    networks:
+      - java-review-net
+
   # ==================== Nacos 2.x（服务注册 + 配置中心）====================
   nacos:
     image: nacos/nacos-server:v2.3.2-slim
@@ -47,6 +62,52 @@ services:
     networks:
       - java-review-net
 
+  # ==================== RocketMQ NameServer ====================
+  rocketmq-namesrv:
+    image: apache/rocketmq:5.1.4
+    container_name: java-review-namesrv
+    ports:
+      - "9876:9876"
+    command: sh mqnamesrv
+    environment:
+      - JAVA_OPT_EXT=-Xms256m -Xmx256m
+    networks:
+      - java-review-net
+
+  # ==================== RocketMQ Broker ====================
+  rocketmq-broker:
+    image: apache/rocketmq:5.1.4
+    container_name: java-review-broker
+    ports:
+      - "10911:10911"
+      - "10909:10909"
+    command: sh mqbroker -n rocketmq-namesrv:9876 --enable-proxy
+    environment:
+      - JAVA_OPT_EXT=-Xms256m -Xmx256m
+      # autoCreateTopicEnable 开发环境开启，生产环境应关闭
+      - "autoCreateTopicEnable=true"
+    depends_on:
+      - rocketmq-namesrv
+    networks:
+      - java-review-net
+
+  # ==================== RocketMQ Dashboard（Topic/消费进度等可视化）====================
+  rocketmq-dashboard:
+    image: apacherocketmq/rocketmq-dashboard:latest
+    container_name: java-review-rocketmq-dashboard
+    ports:
+      # 容器内默认 8082；映射到 18082 避免与本机订单服务 8082 冲突
+      - "18082:8082"
+    environment:
+      JAVA_OPTS: >-
+        -Drocketmq.namesrv.addr=rocketmq-namesrv:9876
+        -Dcom.rocketmq.sendMessageWithVIPChannel=false
+    depends_on:
+      - rocketmq-namesrv
+      - rocketmq-broker
+    networks:
+      - java-review-net
+
   # ==================== Prometheus（指标采集）====================
   prometheus:
     image: prom/prometheus:v2.47.0
@@ -55,6 +116,9 @@ services:
       - "9090:9090"
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    extra_hosts:
+      # 映射本机主机的 docker.sock
+      - "host.docker.internal:host-gateway"
     networks:
       - java-review-net
 

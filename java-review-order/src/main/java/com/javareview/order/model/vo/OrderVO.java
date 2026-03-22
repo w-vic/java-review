@@ -17,6 +17,7 @@ public record OrderVO(
         Integer quantity,
         BigDecimal totalAmount,
         String statusDesc,
-        LocalDateTime createTime
+        LocalDateTime createTime,
+        LocalDateTime updateTime
 ) {
 }

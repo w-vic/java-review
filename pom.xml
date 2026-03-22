@@ -39,6 +39,9 @@
         <!-- 数据层 -->
         <mybatis-plus.version>3.5.7</mybatis-plus.version>
 
+        <!-- 消息队列 -->
+        <rocketmq-spring.version>2.3.0</rocketmq-spring.version>
+
         <!-- 工具 -->
         <hutool.version>5.8.27</hutool.version>
     </properties>
@@ -72,6 +75,13 @@
                 <groupId>com.baomidou</groupId>
                 <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
                 <version>${mybatis-plus.version}</version>
+            </dependency>
+
+            <!-- RocketMQ Spring Boot Starter -->
+            <dependency>
+                <groupId>org.apache.rocketmq</groupId>
+                <artifactId>rocketmq-spring-boot-starter</artifactId>
+                <version>${rocketmq-spring.version}</version>
             </dependency>
 
             <!-- 本项目公共模块 -->

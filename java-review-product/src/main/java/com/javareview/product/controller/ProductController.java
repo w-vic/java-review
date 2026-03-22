@@ -1,5 +1,6 @@
 package com.javareview.product.controller;
 
+import com.javareview.common.dto.StockDeductDTO;
 import com.javareview.common.result.Result;
 import com.javareview.product.model.dto.ProductCreateDTO;
 import com.javareview.product.model.dto.ProductUpdateDTO;
@@ -46,6 +47,24 @@ public class ProductController {
     @GetMapping("/search")
     public Result<List<ProductVO>> search(@RequestParam String keyword) {
         return Result.ok(productService.search(keyword));
+    }
+
+    /**
+     * 查询商品库存——供订单服务 Feign 调用，下单前校验库存是否充足
+     */
+    @GetMapping("/{id}/stock")
+    public Result<Integer> getStock(@PathVariable Long id) {
+        var product = productService.getById(id);
+        return Result.ok(product.stock());
+    }
+
+    /**
+     * 扣减库存——供订单服务付款成功后 Feign 调用
+     */
+    @PostMapping("/{id}/stock/deduct")
+    public Result<Void> deductStock(@PathVariable Long id, @Valid @RequestBody StockDeductDTO dto) {
+        productService.deductStock(id, dto.quantity());
+        return Result.ok();
     }
 
     @PutMapping("/{id}")
