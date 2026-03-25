@@ -1,0 +1,35 @@
+# PDB（PodDisruptionBudget）用于限制“自愿中断”时可同时不可用的 Pod 数量
+# 典型场景：节点维护、集群升级，防止服务被一次性驱逐光
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: java-review-gateway-pdb
+  namespace: java-review
+spec:
+  # 至少保留 1 个可用副本
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: java-review-gateway
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: java-review-product-pdb
+  namespace: java-review
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: java-review-product
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: java-review-order-pdb
+  namespace: java-review
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: java-review-order

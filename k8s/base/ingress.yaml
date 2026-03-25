@@ -1,0 +1,21 @@
+# Ingress 将集群外请求转发到网关 Service
+# 访问域名示例：java-review.local
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: java-review-gateway
+  namespace: java-review
+spec:
+  # 依赖已安装的 ingress-nginx（或替换为你的 IngressClass）
+  ingressClassName: nginx
+  rules:
+    - host: java-review.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: java-review-gateway
+                port:
+                  number: 8080

@@ -1,0 +1,23 @@
+# 非敏感配置集中管理：应用通过 envFrom 一次性注入这些变量
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: java-review-config
+  namespace: java-review
+data:
+  # MySQL 连接参数（对应 application.yml 的 MYSQL_* 占位符）
+  # host.docker.internal 在 kind/Docker Desktop 中解析为宿主机 IP
+  MYSQL_HOST: host.docker.internal
+  MYSQL_PORT: "3306"
+  MYSQL_DATABASE: java_review
+  MYSQL_USERNAME: root
+  # Redis 连接参数
+  REDIS_HOST: host.docker.internal
+  REDIS_PORT: "6379"
+  REDIS_DATABASE: "0"
+  REDIS_TIMEOUT: 3000ms
+  # Elasticsearch 连接参数
+  ELASTICSEARCH_HOST: elasticsearch
+  ELASTICSEARCH_PORT: "9200"
+  # Nacos 服务发现/配置中心地址
+  NACOS_SERVER_ADDR: nacos:8848

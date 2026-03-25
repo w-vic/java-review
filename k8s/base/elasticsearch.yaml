@@ -1,0 +1,74 @@
+# Elasticsearch 单节点学习版：
+# - 关闭安全特性，减少本地联调复杂度
+# - 使用 StatefulSet + PVC 保留索引数据
+apiVersion: v1
+kind: Service
+metadata:
+  name: elasticsearch
+  namespace: java-review
+spec:
+  ports:
+    # REST API 端口
+    - name: http
+      port: 9200
+      targetPort: 9200
+    # 集群内部传输端口（单节点也保留）
+    - name: transport
+      port: 9300
+      targetPort: 9300
+  selector:
+    app: elasticsearch
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: elasticsearch
+  namespace: java-review
+spec:
+  serviceName: elasticsearch
+  replicas: 1
+  selector:
+    matchLabels:
+      app: elasticsearch
+  template:
+    metadata:
+      labels:
+        app: elasticsearch
+    spec:
+      containers:
+        - name: elasticsearch
+          image: docker.elastic.co/elasticsearch/elasticsearch:8.10.2
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 9200
+            - containerPort: 9300
+          env:
+            # 单节点模式，避免选主相关配置
+            - name: discovery.type
+              value: single-node
+            # 学习环境关闭认证
+            - name: xpack.security.enabled
+              value: "false"
+            # JVM 堆大小
+            - name: ES_JAVA_OPTS
+              value: -Xms512m -Xmx512m
+            - name: action.auto_create_index
+              value: "true"
+          readinessProbe:
+            httpGet:
+              # 根路径可返回集群状态信息
+              path: /
+              port: 9200
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          volumeMounts:
+            - name: es-data
+              mountPath: /usr/share/elasticsearch/data
+  volumeClaimTemplates:
+    - metadata:
+        name: es-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 10Gi

@@ -1,0 +1,60 @@
+# 订单服务配置与 product 类似，便于对比学习多服务统一部署模板
+apiVersion: v1
+kind: Service
+metadata:
+  name: java-review-order
+  namespace: java-review
+spec:
+  ports:
+    - name: http
+      port: 8082
+      targetPort: 8082
+  selector:
+    app: java-review-order
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: java-review-order
+  namespace: java-review
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: java-review-order
+  template:
+    metadata:
+      labels:
+        app: java-review-order
+    spec:
+      containers:
+        - name: java-review-order
+          image: java-review-order:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8082
+          envFrom:
+            # 注入 MySQL/Redis/Nacos 地址等
+            - configMapRef:
+                name: java-review-config
+            - secretRef:
+                name: java-review-secret
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8082
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8082
+            initialDelaySeconds: 40
+            periodSeconds: 15
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi

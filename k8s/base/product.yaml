@@ -1,0 +1,67 @@
+# 商品服务：
+# - Service 提供稳定访问名（供网关/Nacos/其他服务调用）
+# - Deployment 托管 Pod 生命周期与滚动更新
+apiVersion: v1
+kind: Service
+metadata:
+  name: java-review-product
+  namespace: java-review
+spec:
+  ports:
+    - name: http
+      port: 8081
+      targetPort: 8081
+  selector:
+    app: java-review-product
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: java-review-product
+  namespace: java-review
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: java-review-product
+  template:
+    metadata:
+      labels:
+        app: java-review-product
+    spec:
+      containers:
+        - name: java-review-product
+          image: java-review-product:latest
+          # 本地学习场景常用本地镜像，避免每次都拉仓库
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8081
+          envFrom:
+            # 注入中间件地址等非敏感配置
+            - configMapRef:
+                name: java-review-config
+            # 注入敏感配置（如 DB 密码）
+            - secretRef:
+                name: java-review-secret
+          readinessProbe:
+            httpGet:
+              # 就绪后才接收流量
+              path: /actuator/health
+              port: 8081
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              # 存活探针失败会触发重启
+              path: /actuator/health
+              port: 8081
+            initialDelaySeconds: 40
+            periodSeconds: 15
+          resources:
+            # requests 决定调度基线，limits 决定最大资源
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi

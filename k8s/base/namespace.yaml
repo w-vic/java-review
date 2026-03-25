@@ -1,0 +1,5 @@
+# 将本项目资源隔离到独立命名空间，便于统一查看/清理
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: java-review

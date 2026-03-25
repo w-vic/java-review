@@ -1,0 +1,54 @@
+# Redis 采用 StatefulSet + PVC，便于学习“有状态服务”部署方式
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: java-review
+spec:
+  # 通过 redis:6379 供应用访问
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: 6379
+  selector:
+    app: redis
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis
+  namespace: java-review
+spec:
+  serviceName: redis
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+        - name: redis
+          image: redis:7.2-alpine
+          ports:
+            - containerPort: 6379
+          readinessProbe:
+            exec:
+              # PING 返回 PONG 视为可用
+              command: ["redis-cli", "ping"]
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          volumeMounts:
+            - name: redis-data
+              mountPath: /data
+  volumeClaimTemplates:
+    - metadata:
+        name: redis-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            # 学习环境 1Gi 足够
+            storage: 1Gi

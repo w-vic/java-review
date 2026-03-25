@@ -1,0 +1,21 @@
+# local overlay：本地学习环境（MySQL/Redis 在宿主机，其余组件在 kind 集群内）
+# 通过 patches 覆盖 base 中的 ConfigMap，将数据库地址指向宿主机
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: java-review
+
+resources:
+  - ../../base
+
+patches:
+  - target:
+      kind: ConfigMap
+      name: java-review-config
+    patch: |-
+      - op: replace
+        path: /data/MYSQL_HOST
+        value: host.docker.internal
+      - op: replace
+        path: /data/REDIS_HOST
+        value: host.docker.internal

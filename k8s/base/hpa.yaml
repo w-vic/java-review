@@ -1,0 +1,22 @@
+# HPA：根据 CPU 利用率自动扩缩容 gateway
+# 前提：集群已安装 metrics-server
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: java-review-gateway
+  namespace: java-review
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: java-review-gateway
+  minReplicas: 1
+  maxReplicas: 3
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          # 目标 CPU 使用率 70%
+          type: Utilization
+          averageUtilization: 70
